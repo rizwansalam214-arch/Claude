@@ -27,6 +27,18 @@ SQL Server (read-only) ──► extract CSV ──► transform & validate ─�
 
 Exit code `0` = built, `2` = stopped by a validation error (message on screen and in the log).
 
+## No Python on the server? Export, then build elsewhere
+
+`export_extract.ps1` runs the same patched query with PowerShell and writes a zipped CSV:
+
+```powershell
+Install-Module SqlServer -Scope CurrentUser      # once
+.\export_extract.ps1 -Server "your-sql-host"
+```
+
+Build from that file on any machine with Python: `python build_dashboard.py --from-csv output\extract_<stamp>.csv`.
+Locale-formatted dates (e.g. `01/09/2026`) are handled.
+
 ## Changes to your query
 
 `sql/channel_sku_extract.sql` is your query with six marked fixes. The untouched original is in `sql/channel_sku_extract.original.sql`, so you can diff the two.

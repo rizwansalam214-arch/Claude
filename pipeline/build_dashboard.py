@@ -129,8 +129,19 @@ def num(v) -> float:
         raise BuildError(f"Non-numeric value in a numeric column: {v!r}")
 
 
-def month_key(v: str) -> str:
-    return str(v)[:7]
+def month_key(row: dict) -> str:
+    """YYYY-MM from the query's YearMonth column, else from Month Start in ISO or dd/mm/yyyy form
+    (PowerShell Export-Csv and SSMS write dates in the machine's locale)."""
+    ym = (row.get("YearMonth") or "").strip()
+    if re.fullmatch(r"\d{4}-\d{2}", ym):
+        return ym
+    v = str(row.get("Month Start") or "").strip()
+    if re.match(r"\d{4}-\d{2}", v):
+        return v[:7]
+    m = re.match(r"(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})", v)
+    if m:
+        return f"{m.group(3)}-{int(m.group(2)):02d}"     # dd/mm/yyyy (UAE / UK locale)
+    raise BuildError(f"Cannot read the month from Month Start {v!r}")
 
 
 def month_range(first: str, last: str) -> list[str]:
@@ -194,7 +205,7 @@ def transform(cfg: dict, csv_path: Path, as_of: dt.date) -> dict:
         for row in rd:
             co = (row["Company"] or "").strip().upper()
             src = (row["Source Type"] or "").strip().upper()
-            m = month_key(row["Month Start"])
+            m = month_key(row)
             months_seen.add(m)
             counts[src] += 1
             if co not in fx:
@@ -377,7 +388,13 @@ def main(argv=None) -> int:
             extracted_at = json.loads(meta_path.read_text())["extracted_at"] if meta_path.exists() else \
                 dt.datetime.fromtimestamp(csv_path.stat().st_mtime).isoformat(timespec="seconds")
         else:
-            csv_path, started = extract(cfg, out_dir)
+            try:
+                csv_path, started = extract(cfg, out_dir)
+            except BuildError:
+                raise
+            except Exception as e:  # driver / network errors: one readable line, no traceback
+                raise BuildError(f"Database step failed: {str(e).splitlines()[0][:300]}. Check the server name, "
+                                 "network access and login, or run with --from-csv on an exported file.")
             extracted_at = started.isoformat(timespec="seconds")
         as_of = dt.date.fromisoformat(a.as_of) if a.as_of else dt.date.fromisoformat(extracted_at[:10])
 
