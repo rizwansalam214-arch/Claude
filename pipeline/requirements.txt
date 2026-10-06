@@ -1,0 +1,2 @@
+pyodbc>=5.0        # default driver (needs Microsoft ODBC Driver 18 for SQL Server)
+# pymssql>=2.2     # optional alternative: set connection.driver = "pymssql" in config.json

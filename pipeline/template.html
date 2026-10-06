@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Sales &amp; SKU Dashboard</title>
+<style>
+/* Layout: top bar + filter bar, tabbed content in a centred column, analyst drawer slides in from the right. */
+:root {
+  --bg: #f6f5f2;
+  --card: #ffffff;
+  --ink: #121211;
+  --ink-2: #55534e;
+  --muted: #86837b;
+  --line: #e3e1da;
+  --line-soft: #efede8;
+  --accent: #7a4b26;          /* placeholder brand accent: swap for brand tokens */
+  --accent-ink: #ffffff;
+  --accent-soft: #f3ebe3;
+  --s1: #2a78d6;              /* Actual */
+  --s2: #eb6834;              /* Last year */
+  --ref: #8f8c84;             /* Budget reference line */
+  --good: #006300;
+  --good-bg: #e6f2e4;
+  --bad: #b42323;
+  --bad-bg: #f8e5e3;
+  --warn: #8a5a00;
+  --warn-bg: #fbf0d6;
+  --glass: rgba(255, 255, 255, 0.82);
+  --shadow: 0 1px 2px rgba(18, 18, 17, 0.05), 0 4px 16px rgba(18, 18, 17, 0.05);
+  --font: -apple-system, "SF Pro Text", "SF Pro Display", Inter, system-ui, "Segoe UI", Roboto, sans-serif;
+  --r: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111110; --card: #1a1a19; --ink: #f4f3ef; --ink-2: #c3c2b7; --muted: #8f8c84;
+    --line: #2f2e2b; --line-soft: #242422; --accent: #d39a63; --accent-ink: #1a1a19; --accent-soft: #2c2219;
+    --s1: #3987e5; --s2: #d95926; --ref: #8f8c84;
+    --good: #3fbf3f; --good-bg: #16290f; --bad: #ef7a7a; --bad-bg: #331a19; --warn: #e3b14b; --warn-bg: #2e2510;
+    --glass: rgba(26, 26, 25, 0.86); --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111110; --card: #1a1a19; --ink: #f4f3ef; --ink-2: #c3c2b7; --muted: #8f8c84;
+  --line: #2f2e2b; --line-soft: #242422; --accent: #d39a63; --accent-ink: #1a1a19; --accent-soft: #2c2219;
+  --s1: #3987e5; --s2: #d95926; --ref: #8f8c84;
+  --good: #3fbf3f; --good-bg: #16290f; --bad: #ef7a7a; --bad-bg: #331a19; --warn: #e3b14b; --warn-bg: #2e2510;
+  --glass: rgba(26, 26, 25, 0.86); --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.35);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 14px; line-height: 1.45; }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; border-radius: 6px; }
+.num { font-variant-numeric: tabular-nums; }
+
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 24px; }
+@media (max-width: 640px) { .wrap { padding-inline: 16px; } }
+
+/* Top bar */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--glass); backdrop-filter: saturate(160%) blur(14px); -webkit-backdrop-filter: saturate(160%) blur(14px); border-bottom: 1px solid var(--line); }
+.top-row { display: flex; align-items: center; gap: 12px; padding-block: 12px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 6px 10px; margin-right: auto; min-width: 0; flex-wrap: wrap; }
+.mark { width: 28px; height: 28px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-weight: 700; font-size: 13px; flex: none; }
+.brand h1 { font-size: 16px; font-weight: 650; margin: 0; letter-spacing: -0.01em; white-space: nowrap; }
+.pill { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; background: var(--warn-bg); color: var(--warn); white-space: nowrap; }
+.who { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); }
+.who select { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; }
+.btn { border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 7px 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.08); }
+
+/* Filter bar */
+.filters { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding-block: 0 12px; }
+.seg { display: inline-flex; background: var(--line-soft); border-radius: 10px; padding: 2px; gap: 2px; flex-wrap: wrap; }
+.seg button { border: 0; background: transparent; padding: 5px 10px; border-radius: 8px; cursor: pointer; color: var(--ink-2); font-size: 13px; white-space: nowrap; }
+.seg button[aria-pressed="true"] { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); font-weight: 600; }
+.flabel { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-right: 6px; }
+.fgroup { display: inline-flex; align-items: center; }
+.fsel { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 5px 8px; font-size: 13px; max-width: 100%; }
+
+/* Banner and tabs */
+.banner { display: flex; gap: 8px 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-2); padding-block: 14px 4px; }
+.banner b { color: var(--ink); font-weight: 600; }
+.flag { display: inline-flex; align-items: center; gap: 6px; color: var(--warn); }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-top: 10px; overflow-x: auto; }
+.tabs button { border: 0; background: none; padding: 10px 12px; cursor: pointer; color: var(--ink-2); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; font-weight: 500; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 650; }
+main { padding-block: 20px 64px; display: grid; gap: 16px; }
+
+/* Cards */
+.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: 18px; min-width: 0; }
+.card h2 { font-size: 15px; margin: 0; font-weight: 650; letter-spacing: -0.005em; text-wrap: balance; }
+.card .sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.grid-2 { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 900px) { .grid-2 { grid-template-columns: minmax(0, 1fr); } }
+
+/* KPI tiles */
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 460px) { .kpis { grid-template-columns: minmax(0, 1fr); } }
+.kpi { display: grid; gap: 6px; align-content: start; }
+.kpi .label { font-size: 12px; color: var(--ink-2); font-weight: 500; }
+.kpi .value { font-size: 28px; font-weight: 650; letter-spacing: -0.02em; line-height: 1.1; }
+.kpi .foot { font-size: 12px; color: var(--muted); display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 2px 7px; border-radius: 999px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.chip.good { color: var(--good); background: var(--good-bg); }
+.chip.bad { color: var(--bad); background: var(--bad-bg); }
+.chip.na { color: var(--muted); background: var(--line-soft); font-weight: 500; }
+
+/* Chart */
+.chart { position: relative; width: 100%; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); }
+.legend i { display: inline-block; width: 14px; height: 2px; vertical-align: middle; margin-right: 6px; border-radius: 2px; }
+.tip { position: absolute; pointer-events: none; background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 8px 10px; font-size: 12px; min-width: 150px; z-index: 5; }
+.tip .t { font-weight: 650; margin-bottom: 4px; }
+.tip .r { display: flex; justify-content: space-between; gap: 12px; color: var(--ink-2); }
+.tip .r b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Bars */
+.bars { display: grid; gap: 10px; }
+.bar-row { display: grid; grid-template-columns: minmax(90px, 150px) minmax(0, 1fr) auto; gap: 10px; align-items: center; font-size: 13px; }
+.bar-row .name { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.track { height: 10px; background: var(--line-soft); border-radius: 0 4px 4px 0; position: relative; }
+.fill { position: absolute; inset: 0 auto 0 0; background: var(--s1); border-radius: 0 4px 4px 0; }
+.bar-row .val { display: flex; gap: 8px; align-items: center; justify-content: flex-end; min-width: 140px; }
+@media (max-width: 460px) { .bar-row { grid-template-columns: minmax(80px, 110px) minmax(0, 1fr) auto; } .bar-row .val { min-width: 0; } }
+
+/* Tables */
+.tbl-wrap { overflow-x: auto; margin: 0 -18px; padding: 0 18px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th.l, td.l { text-align: left; }
+th.sort { cursor: pointer; user-select: none; }
+th.sort:hover { color: var(--ink); }
+td { text-align: right; padding: 9px 10px; border-bottom: 1px solid var(--line-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+tr.total td { font-weight: 650; border-top: 1px solid var(--line); border-bottom: 0; }
+td .desc { color: var(--muted); font-size: 12px; }
+.abc { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font-weight: 700; font-size: 11px; background: var(--line-soft); color: var(--ink-2); }
+.abc.A { background: var(--accent-soft); color: var(--accent); }
+.toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.search { border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 7px 10px; min-width: 0; width: 220px; max-width: 100%; }
+.note { font-size: 12.5px; color: var(--muted); }
+.empty { text-align: center; padding: 48px 16px; color: var(--ink-2); }
+.empty h2 { font-size: 16px; margin-bottom: 6px; }
+
+/* Data quality */
+.dq-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 900px) { .dq-grid { grid-template-columns: minmax(0, 1fr); } }
+.status { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; }
+.status.ok { color: var(--good); }
+.status.warn { color: var(--warn); }
+.status.bad { color: var(--bad); }
+.dq-list { display: grid; gap: 8px; margin-top: 10px; font-size: 13px; }
+.dq-list div { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--line-soft); padding-bottom: 6px; }
+.dq-list span:first-child { color: var(--ink-2); }
+
+/* Analyst drawer */
+.drawer { position: fixed; top: 0; right: 0; height: 100%; width: min(440px, 100%); z-index: 40; background: var(--glass); backdrop-filter: saturate(160%) blur(20px); -webkit-backdrop-filter: saturate(160%) blur(20px); border-left: 1px solid var(--line); box-shadow: -10px 0 40px rgba(0,0,0,.12); display: flex; flex-direction: column; transform: translateX(105%); transition: transform 220ms ease; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.drawer.open { transform: translateX(0); }
+@media (prefers-reduced-motion: reduce) { .drawer { transition: none; } }
+.d-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.d-head h2 { font-size: 15px; margin: 0; }
+.d-head .sub { font-size: 12px; color: var(--muted); }
+.d-head .x { margin-left: auto; }
+.d-body { flex: 1; overflow-y: auto; padding: 16px; display: grid; gap: 14px; align-content: start; }
+.msg { max-width: 100%; min-width: 0; font-size: 13.5px; }
+.msg.user { justify-self: end; background: var(--accent); color: var(--accent-ink); padding: 8px 12px; border-radius: 14px 14px 4px 14px; max-width: 85%; }
+.msg.ai { background: var(--card); border: 1px solid var(--line); border-radius: 14px 14px 14px 4px; padding: 12px 14px; }
+.msg.ai p { margin: 0 0 8px; }
+.msg.ai p:last-child { margin-bottom: 0; }
+.msg.ai ul { margin: 0 0 8px; padding-left: 18px; }
+.msg.ai table { font-size: 12px; margin: 6px 0 10px; }
+.msg.ai td, .msg.ai th { padding: 5px 6px; }
+.msg.ai .md-tbl { overflow-x: auto; }
+.msg.ai h4 { margin: 6px 0; font-size: 13.5px; }
+.thinking { color: var(--muted); font-style: italic; }
+.working { margin-top: 10px; font-size: 12px; color: var(--ink-2); border-top: 1px solid var(--line-soft); padding-top: 8px; }
+.working summary { cursor: pointer; color: var(--muted); }
+.working pre { white-space: pre-wrap; word-break: break-word; background: var(--line-soft); padding: 8px; border-radius: 8px; font-size: 11px; margin: 6px 0; max-height: 200px; overflow: auto; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+.starters { display: grid; gap: 8px; }
+.starters .cap { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.sq { text-align: left; border: 1px solid var(--line); background: var(--card); border-radius: 12px; padding: 9px 12px; cursor: pointer; font-size: 13px; }
+.sq:hover { border-color: var(--accent); }
+.followups { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.followups button { font-size: 12px; border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 4px 10px; cursor: pointer; text-align: left; }
+.followups button:hover { border-color: var(--accent); }
+.d-foot { border-top: 1px solid var(--line); padding: 12px 16px; display: grid; gap: 8px; }
+.composer { display: flex; gap: 8px; }
+.composer textarea { flex: 1; min-width: 0; resize: none; border: 1px solid var(--line); border-radius: 12px; padding: 9px 12px; background: var(--card); font: inherit; height: 44px; }
+.scope-line { font-size: 11.5px; color: var(--muted); }
+.unavail { font-size: 13px; color: var(--ink-2); background: var(--warn-bg); border-radius: 12px; padding: 12px; }
+.badge-src { font-size: 11.5px; color: var(--muted); }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="top-row">
+      <div class="brand">
+        <div class="mark" aria-hidden="true">S</div>
+        <h1>Sales &amp; SKU Dashboard</h1>
+        <span class="pill" id="audPill"></span>
+      </div>
+      <button class="btn primary" id="openChat" type="button" aria-controls="drawer" hidden>✦ Ask the analyst</button>
+    </div>
+    <div class="filters" role="group" aria-label="Filters">
+      <span class="fgroup"><span class="flabel">Period</span><span class="seg" id="fPeriod"></span></span>
+      <span class="fgroup"><span class="flabel">Compare</span><span class="seg" id="fCompare"></span></span>
+      <span class="fgroup"><label class="flabel" for="fCompany">Company</label><select class="fsel" id="fCompany"></select></span>
+      <span class="fgroup"><label class="flabel" for="fSegment">Segment</label><select class="fsel" id="fSegment"></select></span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="banner" id="banner"></div>
+  <nav class="tabs" role="tablist" id="tabs"></nav>
+  <main id="main"></main>
+</div>
+
+<aside class="drawer" id="drawer" aria-label="AI analyst" aria-hidden="true">
+  <div class="d-head">
+    <div class="mark" aria-hidden="true">✦</div>
+    <div><h2>Sales analyst</h2><div class="sub">Answers from this dashboard's data only</div></div>
+    <button class="btn x" id="closeChat" type="button" aria-label="Close analyst">✕</button>
+  </div>
+  <div class="d-body" id="dBody" aria-live="polite"></div>
+  <div class="d-foot">
+    <form class="composer" id="composer">
+      <textarea id="q" placeholder="Ask about sales in your scope…" aria-label="Question"></textarea>
+      <button class="btn primary" id="send" type="submit">Ask</button>
+      <button class="btn" id="stop" type="button" hidden>Stop</button>
+    </form>
+  </div>
+</aside>
+
+<script id="dash-data" type="application/json">/*__DASHBOARD_DATA__*/</script>
+<script>
+"use strict";
+/* ======================================================================
+   DATA — embedded by build_dashboard.py. Already limited to this
+   audience's segments and companies. Amounts AED; actuals are item
+   ledger (SKU basis), budget is G/L budget.
+   ====================================================================== */
+const D = JSON.parse(document.getElementById("dash-data").textContent);
+const META = D.meta, MONTHS = D.months, MI = Object.fromEntries(MONTHS.map((k, i) => [k, i]));
+const SEG = Object.fromEntries(D.segments.map(s => [s.code, s]));
+const AUD = META.audience;
+const COMPANIES = { UAE: "Bateel UAE", KSA: "Bateel KSA", FAKHRA: "Al Fakhra" };
+const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const mk = (y, m) => `${y}-${String(m).padStart(2, "0")}`;
+const prevYear = k => mk(+k.slice(0, 4) - 1, +k.slice(5));
+const monLabel = k => `${MON[+k.slice(5) - 1]} ${k.slice(0, 4)}`;
+
+// Periods from the as-of date: current month to date, last closed month, its quarter to date, year to date.
+const asOf = new Date(META.as_of + "T00:00:00");
+const CUR = mk(asOf.getFullYear(), asOf.getMonth() + 1);
+const DIM = new Date(asOf.getFullYear(), asOf.getMonth() + 1, 0).getDate();
+const MTD_F = asOf.getDate() / DIM;
+const lastD = new Date(asOf.getFullYear(), asOf.getMonth() - 1, 1);
+const LAST = mk(lastD.getFullYear(), lastD.getMonth() + 1);
+const LY_ = lastD.getFullYear(), LM = lastD.getMonth() + 1, QS = Math.floor((LM - 1) / 3) * 3 + 1;
+const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => mk(LY_, a + i));
+const PERIODS = {
+  MTD: { label: `${MON[asOf.getMonth()]} MTD`, long: `${monLabel(CUR)} MTD (1–${asOf.getDate()} ${MON[asOf.getMonth()]})`, months: [CUR], mtd: true },
+  M: { label: MON[LM - 1], long: monLabel(LAST), months: [LAST] },
+  QTD: { label: `Q${(QS + 2) / 3}`, long: `Q${(QS + 2) / 3} ${LY_} to ${MON[LM - 1]}`, months: range(QS, LM) },
+  YTD: { label: "YTD", long: `YTD ${MON[LM - 1]} ${LY_} (Jan–${MON[LM - 1]})`, months: range(1, LM) },
+};
+
+const val = (arr, k) => (k in MI ? arr[MI[k]] : null);
+function linesFor({ segment, company, sub } = {}) {
+  return D.lines.map((_, i) => i).filter(i => {
+    const L = D.lines[i];
+    return (!segment || segment === "ALL" || L.seg === segment) && (!company || company === "ALL" || L.co === company) && (!sub || L.sub === sub);
+  });
+}
+function sumLines(idx, pkey) {
+  const P = PERIODS[pkey] || pkey;
+  let act = 0, bud = 0, ly = 0, qty = 0, oi = 0, lyMissing = false, budSeen = false, budPartial = false;
+  for (const i of idx) {
+    const L = D.lines[i];
+    if (P.months.some(k => val(L.act, k)) && !P.months.some(k => val(L.bud, k))) budPartial = true;
+    for (const k of P.months) {
+      const f = P.mtd ? MTD_F : 1;
+      act += val(L.act, k) || 0; qty += val(L.qty, k) || 0; oi += val(L.oi, k) || 0;
+      const b = val(L.bud, k); if (b) budSeen = true; bud += (b || 0) * f;
+      const l = val(L.act, prevYear(k)); if (l == null) lyMissing = true; ly += (l || 0) * f;
+    }
+  }
+  return { act, bud: budSeen ? bud : null, ly: lyMissing ? null : ly, qty, oi, budPartial: budSeen && budPartial };
+}
+function skuTable(pkey, filt = {}) {
+  const P = PERIODS[pkey] || pkey, f = P.mtd ? MTD_F : 1;
+  const rows = [];
+  for (const s of D.skus) {
+    let sales = 0, qty = 0, ly = 0, hit = false;
+    for (const b of s.by) {
+      if (filt.segment && filt.segment !== "ALL" && b.seg !== filt.segment) continue;
+      if (filt.company && filt.company !== "ALL" && b.co !== filt.company) continue;
+      hit = true;
+      for (const k of P.months) { sales += val(b.act, k) || 0; qty += val(b.qty, k) || 0; ly += (val(b.act, prevYear(k)) || 0) * f; }
+    }
+    if (hit && (sales || ly)) rows.push({ sku: s, sales, qty, ly });
+  }
+  const filtered = filt.category && filt.category !== "ALL" ? rows.filter(r => r.sku.cat === filt.category) : rows;
+  const total = filtered.reduce((a, r) => a + Math.max(r.sales, 0), 0);
+  let cum = 0;
+  [...filtered].sort((a, b) => b.sales - a.sales).forEach(r => { cum += Math.max(r.sales, 0); r.abc = cum <= total * .8 + 1e-6 ? "A" : cum <= total * .95 ? "B" : "C"; });
+  return filtered;
+}
+const CATEGORIES = [...new Set(D.skus.map(s => s.cat))].sort();
+const SPARK_MONTHS = (() => { const out = []; for (let i = 11; i >= 0; i--) { const d = new Date(lastD.getFullYear(), lastD.getMonth() - i, 1); out.push(mk(d.getFullYear(), d.getMonth() + 1)); } return out; })();
+function skuSpark(s, filt) {
+  return SPARK_MONTHS.map(k => s.by.reduce((a, b) => ((filt.segment === "ALL" || b.seg === filt.segment) && (filt.company === "ALL" || b.co === filt.company)) ? a + (val(b.act, k) || 0) : a, 0));
+}
+
+/* ======================================================================
+   FORMATTING
+   ====================================================================== */
+const fmtAED = (v, d) => {
+  if (v == null || isNaN(v)) return "—";
+  const a = Math.abs(v), s = v < 0 ? "−" : "";
+  if (a >= 1e6) return `${s}${(a / 1e6).toFixed(d ?? 2)}M`;
+  if (a >= 1e3) return `${s}${(a / 1e3).toFixed(d ?? 1)}K`;
+  return `${s}${a.toFixed(0)}`;
+};
+const fmtFull = v => v == null ? "—" : "AED " + Math.round(v).toLocaleString("en-GB");
+const fmtInt = v => Math.round(v).toLocaleString("en-GB");
+const pct = (a, b) => (b ? (a - b) / Math.abs(b) : null);
+const fmtPct = p => p == null ? "—" : `${p >= 0 ? "+" : "−"}${Math.abs(p * 100).toFixed(1)}%`;
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function chip(p, label) {
+  if (p == null) return `<span class="chip na">${label ? esc(label) + " " : ""}n/a</span>`;
+  const good = p >= 0;
+  return `<span class="chip ${good ? "good" : "bad"}" aria-label="${good ? "favourable" : "unfavourable"} ${fmtPct(p)}">${good ? "▲" : "▼"} ${fmtPct(p)}${label ? " " + esc(label) : ""}</span>`;
+}
+const lineLabel = L => L.seg === "JOMARA" ? L.sub : `${L.sub} · ${L.co}`;
+
+/* ======================================================================
+   STATE + FILTERS
+   ====================================================================== */
+const state = { period: "M", compare: "BUD", company: "ALL", segment: AUD.segments.length === 1 ? AUD.segments[0] : "ALL", tab: "overview", skuSort: "sales", skuDir: -1, skuSearch: "", skuCat: "ALL" };
+try { const t = localStorage.getItem("sd.tab"); if (t) state.tab = t; } catch (e) { /* storage unavailable */ }
+const filt = () => ({ segment: state.segment, company: state.company });
+
+function segButtons(el, opts, key) {
+  el.innerHTML = opts.map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${state[key] === v}">${esc(l)}</button>`).join("");
+  el.onclick = e => { const b = e.target.closest("button"); if (!b) return; state[key] = b.dataset.v; render(); };
+}
+function renderFilters() {
+  segButtons(document.getElementById("fPeriod"), Object.entries(PERIODS).map(([k, p]) => [k, p.label]), "period");
+  segButtons(document.getElementById("fCompare"), [["BUD", "Budget"], ["LY", "Last year"]], "compare");
+  const cos = AUD.companies.filter(c => D.lines.some(L => L.co === c));
+  document.getElementById("fCompany").innerHTML = (cos.length > 1 ? `<option value="ALL">All permitted</option>` : "") + cos.map(c => `<option value="${c}" ${state.company === c ? "selected" : ""}>${COMPANIES[c] || c}</option>`).join("");
+  if (cos.length === 1) state.company = cos[0];
+  const segs = D.segments.filter(s => D.lines.some(L => L.seg === s.code));
+  document.getElementById("fSegment").innerHTML = (segs.length > 1 ? `<option value="ALL">All permitted</option>` : "") + segs.map(s => `<option value="${s.code}" ${state.segment === s.code ? "selected" : ""}>${esc(s.label)}</option>`).join("");
+  if (segs.length === 1) state.segment = segs[0].code;
+}
+document.getElementById("fCompany").onchange = e => { state.company = e.target.value; render(); };
+document.getElementById("fSegment").onchange = e => { state.segment = e.target.value; render(); };
+
+const TABS = [["overview", "Overview"], ["sku", "SKU performance"], ...(AUD.segments.includes("JOMARA") ? [["jomara", "Jomara"]] : []), ["dq", "Data quality"]];
+if (!TABS.some(t => t[0] === state.tab)) state.tab = "overview";
+function renderTabs() {
+  const el = document.getElementById("tabs");
+  el.innerHTML = TABS.map(([k, l]) => `<button role="tab" type="button" aria-selected="${state.tab === k}" data-k="${k}">${l}</button>`).join("");
+  el.onclick = e => { const b = e.target.closest("button"); if (!b) return; state.tab = b.dataset.k; try { localStorage.setItem("sd.tab", state.tab); } catch (x) { /* ignore */ } render(); renderStarters(); };
+}
+function renderBanner() {
+  const ext = META.extracted_at.replace("T", " ").slice(0, 16);
+  const scope = AUD.group ? "All segments · all companies" : `${AUD.segments.map(s => SEG[s]?.label || s).join(", ")} · ${AUD.companies.map(c => COMPANIES[c] || c).join(" + ")}`;
+  const noBud = (D.dq.budget_coverage || []).filter(c => !c.months).map(c => COMPANIES[c.co] || c.co);
+  document.getElementById("audPill").textContent = `Prepared for ${AUD.label}`;
+  document.getElementById("banner").innerHTML =
+    `<span>Data extracted <b>${esc(ext)}</b></span>` +
+    `<span>Scope: <b>${esc(scope)}</b></span>` +
+    `<span>Amounts in <b>AED</b>${META.fx.KSA && META.fx.KSA !== 1 ? ` · SAR at ${META.fx.KSA}` : ""}</span>` +
+    `<span class="badge-src">Actual = item ledger · Budget = G/L budget</span>` +
+    (noBud.length ? `<span class="flag">⚠ No budget loaded for ${esc(noBud.join(", "))}</span>` : "") +
+    (state.period === "MTD" ? `<span class="flag">◔ MTD budget and LY pro-rated by calendar days (${asOf.getDate()} of ${DIM})</span>` : "");
+}
+
+/* ======================================================================
+   PAGES
+   ====================================================================== */
+function kpiTile(label, value, title, foot) {
+  return `<div class="card kpi"><div class="label">${label}</div><div class="value num" title="${esc(title)}">${value}</div><div class="foot">${foot}</div></div>`;
+}
+function pageOverview() {
+  const idx = linesFor(filt());
+  const t = sumLines(idx, state.period);
+  const P = PERIODS[state.period];
+  const cmpName = state.compare === "BUD" ? "budget" : "last year";
+  const kpis = `<section class="kpis" aria-label="Key figures">
+    ${kpiTile("Net sales · item ledger", "AED " + fmtAED(t.act), fmtFull(t.act), `${chip(pct(t.act, t.bud), "vs budget")} ${chip(pct(t.act, t.ly), "vs LY")}`)}
+    ${kpiTile("Variance vs budget", t.bud == null ? "—" : (t.act - t.bud >= 0 ? "+" : "") + fmtAED(t.act - t.bud), t.bud == null ? "No budget" : fmtFull(t.act - t.bud), t.bud == null ? "<span>No budget loaded for this selection</span>" : `<span>Budget AED ${fmtAED(t.bud)} (G/L)</span>${t.budPartial ? `<span class="flag">⚠ Part of this selection has sales but no budget, which flatters the variance</span>` : ""}`)}
+    ${kpiTile("Variance vs last year", t.ly == null ? "—" : (t.act - t.ly >= 0 ? "+" : "") + fmtAED(t.act - t.ly), t.ly == null ? "No LY data" : fmtFull(t.act - t.ly), `<span>LY AED ${fmtAED(t.ly)} · same months last year</span>`)}
+    ${kpiTile("Quantity sold", fmtInt(t.qty), fmtInt(t.qty) + " base units", `<span>Avg selling price AED ${t.qty ? (t.act / t.qty).toFixed(1) : "—"}</span><span>· Other income AED ${fmtAED(t.oi)} (separate line)</span>`)}
+  </section>`;
+  const bySeg = AUD.group && state.segment === "ALL";
+  const groups = new Map();
+  idx.forEach(i => { const L = D.lines[i]; const key = bySeg ? L.seg : lineLabel(L); (groups.get(key) || groups.set(key, []).get(key)).push(i); });
+  const rows = [...groups.entries()].map(([k, ii]) => ({ k, label: bySeg ? (SEG[k]?.label || k) : k, ...sumLines(ii, state.period) })).filter(r => r.act || r.bud || r.ly).sort((a, b) => b.act - a.act);
+  const max = Math.max(...rows.map(r => r.act), 1), total = rows.reduce((a, r) => a + r.act, 0);
+  const bars = rows.map(r => `<div class="bar-row" title="${esc(r.label)}: ${fmtFull(r.act)}">
+      <span class="name">${esc(r.label)}</span>
+      <span class="track"><span class="fill" style="width:${Math.max(0, r.act / max * 100).toFixed(1)}%"></span></span>
+      <span class="val num"><span>${fmtAED(r.act)}</span>${chip(pct(r.act, state.compare === "BUD" ? r.bud : r.ly))}</span></div>`).join("");
+  const trs = rows.map(r => `<tr><td class="l">${esc(r.label)}</td><td>${fmtAED(r.act)}</td><td>${fmtAED(r.bud)}</td><td>${chip(pct(r.act, r.bud))}</td><td>${fmtAED(r.ly)}</td><td>${chip(pct(r.act, r.ly))}</td>${AUD.group ? `<td>${total ? (r.act / total * 100).toFixed(1) + "%" : "—"}</td>` : ""}</tr>`).join("");
+  return `${kpis}
+  <section class="grid-2">
+    <div class="card">
+      <div class="card-head"><div><h2>Net sales by month, ${asOf.getFullYear()}</h2><div class="sub">AED · actuals to ${monLabel(LAST)}, budget for the full year</div></div>
+        <div class="legend" aria-hidden="true"><span><i style="background:var(--s1)"></i>Actual</span><span><i style="height:0;border-top:2px dashed var(--ref)"></i>Budget</span><span><i style="background:var(--s2)"></i>Last year</span></div></div>
+      <div class="chart" id="trend"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div><h2>${bySeg ? "Segment contribution" : "By sub-line"}</h2><div class="sub">${esc(P.long)} · chip shows variance vs ${cmpName}</div></div></div>
+      <div class="bars">${bars || `<div class="note">No sales in this selection.</div>`}</div>
+    </div>
+  </section>
+  <section class="card">
+    <div class="card-head"><div><h2>${bySeg ? "Segments" : "Sub-lines"}: actual, budget and last year</h2><div class="sub">${esc(P.long)}</div></div></div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th class="l">${bySeg ? "Segment" : "Sub-line"}</th><th>Actual</th><th>Budget</th><th>vs Budget</th><th>Last year</th><th>vs LY</th>${AUD.group ? "<th>Share</th>" : ""}</tr></thead>
+      <tbody>${trs}<tr class="total"><td class="l">Total${AUD.group ? "" : " (your scope)"}</td><td>${fmtAED(t.act)}</td><td>${fmtAED(t.bud)}</td><td>${chip(pct(t.act, t.bud))}</td><td>${fmtAED(t.ly)}</td><td>${chip(pct(t.act, t.ly))}</td>${AUD.group ? "<td>100%</td>" : ""}</tr></tbody>
+    </table></div>
+  </section>`;
+}
+function niceStep(raw) { const p = Math.pow(10, Math.floor(Math.log10(raw))); const n = raw / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p; }
+function drawTrend() {
+  const host = document.getElementById("trend"); if (!host) return;
+  const idx = linesFor(filt()), Y = asOf.getFullYear();
+  const series = Array.from({ length: 12 }, (_, i) => {
+    const k = mk(Y, i + 1), closed = k <= LAST, sum = (key, kk) => idx.reduce((s, j) => s + (val(D.lines[j][key], kk) || 0), 0);
+    const lyk = prevYear(k);
+    return { k, a: closed ? sum("act", k) : null, b: idx.some(j => val(D.lines[j].bud, k)) ? sum("bud", k) : null, ly: lyk in MI ? sum("act", lyk) : null };
+  });
+  const W = Math.max(host.clientWidth, 280), H = 260, m = { t: 12, r: 12, b: 26, l: 56 };
+  const vals = series.flatMap(s => [s.a, s.b, s.ly]).filter(v => v != null);
+  const top0 = Math.max(...vals, 1) * 1.08, step = niceStep(top0 / 4), top = Math.ceil(top0 / step) * step;
+  const x = i => m.l + (W - m.l - m.r) * (i + .5) / 12, y = v => m.t + (H - m.t - m.b) * (1 - v / top);
+  const path = key => { let d = "", pen = false; series.forEach((s, i) => { if (s[key] == null) { pen = false; return; } d += `${pen ? "L" : "M"}${x(i).toFixed(1)},${y(s[key]).toFixed(1)}`; pen = true; }); return d; };
+  let grid = "";
+  for (let v = 0; v <= top + 1; v += step) grid += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="var(--muted)">${fmtAED(v, 1)}</text>`;
+  const xl = series.map((s, i) => (W < 480 && i % 2) ? "" : `<text x="${x(i)}" y="${H - 6}" text-anchor="middle" font-size="11" fill="var(--muted)">${MON[i]}</text>`).join("");
+  const last = series.map(s => s.a != null).lastIndexOf(true);
+  host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Monthly net sales: actual, budget and last year">${grid}${xl}
+    <path d="${path("b")}" fill="none" stroke="var(--ref)" stroke-width="2" stroke-dasharray="5 4"/>
+    <path d="${path("ly")}" fill="none" stroke="var(--s2)" stroke-width="2"/>
+    <path d="${path("a")}" fill="none" stroke="var(--s1)" stroke-width="2.5"/>
+    ${last >= 0 ? `<circle cx="${x(last)}" cy="${y(series[last].a)}" r="4.5" fill="var(--s1)" stroke="var(--card)" stroke-width="2"/>` : ""}
+    <line id="xh" y1="${m.t}" y2="${H - m.b}" stroke="var(--muted)" opacity="0"/><g id="dots"></g>
+    <rect x="${m.l}" y="${m.t}" width="${W - m.l - m.r}" height="${H - m.t - m.b}" fill="transparent" id="hit"/></svg><div class="tip" id="tip" hidden></div>`;
+  const hit = host.querySelector("#hit"), tip = host.querySelector("#tip"), xh = host.querySelector("#xh"), dots = host.querySelector("#dots");
+  const move = ev => {
+    const r = host.getBoundingClientRect(), px = (ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left;
+    const i = Math.max(0, Math.min(11, Math.floor((px - m.l) / ((W - m.l - m.r) / 12)))), s = series[i];
+    xh.setAttribute("x1", x(i)); xh.setAttribute("x2", x(i)); xh.setAttribute("opacity", ".5");
+    dots.innerHTML = [["a", "--s1"], ["b", "--ref"], ["ly", "--s2"]].filter(([k]) => s[k] != null).map(([k, c]) => `<circle cx="${x(i)}" cy="${y(s[k])}" r="4" fill="var(${c})" stroke="var(--card)" stroke-width="2"/>`).join("");
+    tip.hidden = false;
+    tip.innerHTML = `<div class="t">${monLabel(s.k)}</div><div class="r"><span>Actual</span><b>${s.a == null ? "not closed" : fmtAED(s.a)}</b></div>
+      <div class="r"><span>Budget</span><b>${fmtAED(s.b)}</b></div><div class="r"><span>Last year</span><b>${fmtAED(s.ly)}</b></div>
+      ${s.a != null && s.b ? `<div class="r"><span>vs budget</span><b>${fmtPct(pct(s.a, s.b))}</b></div>` : ""}${s.a != null && s.ly ? `<div class="r"><span>vs LY</span><b>${fmtPct(pct(s.a, s.ly))}</b></div>` : ""}`;
+    tip.style.left = (x(i) > W - 190 ? x(i) - 172 : x(i) + 12) + "px"; tip.style.top = "8px";
+  };
+  hit.addEventListener("mousemove", move); hit.addEventListener("touchstart", move, { passive: true });
+  hit.addEventListener("mouseleave", () => { tip.hidden = true; xh.setAttribute("opacity", "0"); dots.innerHTML = ""; });
+}
+function spark(vals) {
+  const w = 84, h = 24, max = Math.max(...vals, 1), min = Math.min(...vals, 0);
+  const pts = vals.map((v, i) => [2 + (w - 4) * i / (vals.length - 1), h - 3 - (h - 6) * (v - min) / (max - min || 1)]);
+  const e = pts[pts.length - 1];
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><path d="${pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join("")}" fill="none" stroke="var(--s1)" stroke-width="1.5"/><circle cx="${e[0]}" cy="${e[1]}" r="2.5" fill="var(--s1)"/></svg>`;
+}
+function pageSku() {
+  const P = PERIODS[state.period];
+  let rows = skuTable(state.period, { ...filt(), category: state.skuCat });
+  const q = state.skuSearch.trim().toLowerCase();
+  if (q) rows = rows.filter(r => r.sku.desc.toLowerCase().includes(q) || r.sku.no.toLowerCase().includes(q));
+  const key = { sales: r => r.sales, qty: r => r.qty, asp: r => r.qty ? r.sales / r.qty : 0, ly: r => pct(r.sales, r.ly) ?? -9, desc: r => r.sku.desc }[state.skuSort];
+  rows.sort((a, b) => { const x = key(a), y = key(b); return (x > y ? 1 : x < y ? -1 : 0) * state.skuDir; });
+  const th = (k, l, cls = "") => `<th class="sort ${cls}" data-k="${k}" aria-sort="${state.skuSort === k ? (state.skuDir > 0 ? "ascending" : "descending") : "none"}">${l}${state.skuSort === k ? (state.skuDir > 0 ? " ↑" : " ↓") : ""}</th>`;
+  const body = rows.slice(0, 100).map(r => `<tr><td class="l"><div>${esc(r.sku.desc)}</div><div class="desc">${esc(r.sku.no)} · ${esc(r.sku.cat)}</div></td>
+      <td><span class="abc ${r.abc}">${r.abc}</span></td><td>${fmtInt(r.qty)}</td><td title="${fmtFull(r.sales)}">${fmtAED(r.sales)}</td>
+      <td>${r.qty ? (r.sales / r.qty).toFixed(1) : "—"}</td><td>${chip(pct(r.sales, r.ly))}</td><td>${spark(skuSpark(r.sku, filt()))}</td></tr>`).join("");
+  return `<section class="card">
+    <div class="card-head"><div><h2>SKU performance</h2><div class="sub">${esc(P.long)} · item ledger · AED. No budget column: budget is not held per SKU.</div></div>
+      <div class="toolbar"><input class="search" id="skuSearch" type="search" placeholder="Search SKU or name" value="${esc(state.skuSearch)}" aria-label="Search SKUs">
+        <select class="fsel" id="skuCat" aria-label="Item category"><option value="ALL">All categories</option>${CATEGORIES.map(c => `<option value="${esc(c)}" ${state.skuCat === c ? "selected" : ""}>${esc(c)}</option>`).join("")}</select></div></div>
+    <div class="tbl-wrap"><table><thead><tr>${th("desc", "SKU", "l")}<th title="A = SKUs making up the first 80% of sales">ABC</th>${th("qty", "Qty")}${th("sales", "Net sales")}${th("asp", "Avg price")}${th("ly", "vs LY")}<th>${MON[+SPARK_MONTHS[0].slice(5) - 1]} ${SPARK_MONTHS[0].slice(2, 4)} – ${MON[LM - 1]} ${String(LY_).slice(2)}</th></tr></thead>
+      <tbody>${body || `<tr><td class="l" colspan="7">No SKUs match.</td></tr>`}</tbody></table></div>
+    <div class="note" style="margin-top:10px">${fmtInt(rows.length)} SKUs${rows.length > 100 ? " · showing first 100: search or sort to find others" : ""}. Category comes from V_Item.ItemCat.</div></section>`;
+}
+function pageJomara() {
+  const P = PERIODS[state.period];
+  const idx = linesFor({ segment: "JOMARA", company: state.company }).sort((a, b) => (D.lines[a].order ?? 99) - (D.lines[b].order ?? 99));
+  const uaeOnly = !AUD.companies.includes("FAKHRA") || state.company === "UAE";
+  const rows = idx.map(i => ({ L: D.lines[i], ...sumLines([i], state.period) }));
+  const t = sumLines(idx, state.period), max = Math.max(...rows.map(r => r.act), 1);
+  return `<section class="card"><div class="card-head"><div><h2>Jomara by sub-line</h2><div class="sub">${esc(P.long)} · fixed reporting order · KSA lines converted from SAR</div></div></div>
+    <div class="tbl-wrap"><table><thead><tr><th class="l">#</th><th class="l">Sub-line</th><th class="l">Company</th><th class="l" style="min-width:120px"></th><th>Actual</th><th>Budget</th><th>vs Budget</th><th>Last year</th><th>vs LY</th></tr></thead>
+    <tbody>${rows.map(r => `<tr><td class="l">${r.L.order ?? ""}</td><td class="l">${esc(r.L.sub)}</td><td class="l"><span class="desc">${COMPANIES[r.L.co] || r.L.co}</span></td>
+      <td class="l"><span class="track" style="display:block"><span class="fill" style="width:${Math.max(0, r.act / max * 100).toFixed(1)}%"></span></span></td>
+      <td>${fmtAED(r.act)}</td><td>${fmtAED(r.bud)}</td><td>${chip(pct(r.act, r.bud))}</td><td>${fmtAED(r.ly)}</td><td>${chip(pct(r.act, r.ly))}</td></tr>`).join("")}
+    <tr class="total"><td class="l"></td><td class="l" colspan="3">Total Jomara in AED${uaeOnly ? " — UAE only" : ""}</td><td>${fmtAED(t.act)}</td><td>${fmtAED(t.bud)}</td><td>${chip(pct(t.act, t.bud))}</td><td>${fmtAED(t.ly)}</td><td>${chip(pct(t.act, t.ly))}</td></tr></tbody></table></div>
+    ${uaeOnly ? `<div class="note" style="margin-top:10px">KSA sub-lines are not included in this view.</div>` : ""}</section>`;
+}
+function pageDQ() {
+  const dq = D.dq, P = PERIODS[state.period];
+  const row = (a, b) => `<div><span>${a}</span><span class="num">${b}</span></div>`;
+  const signOk = dq.sign && dq.sign.sales_after > 0;
+  const un = dq.unassigned || [], unTotal = un.reduce((a, r) => a + r.amount, 0);
+  return `<section class="dq-grid">
+    <div class="card"><h2>Extract</h2><div class="sub">${esc(META.source)}</div>
+      <div style="margin-top:10px" class="status ok">● Built ${esc(META.generated_at.replace("T", " ").slice(0, 16))}</div>
+      <div class="dq-list">${row("Extracted", esc(META.extracted_at.replace("T", " ").slice(0, 16)))}${row("Months held", `${monLabel(MONTHS[0])} – ${monLabel(MONTHS[MONTHS.length - 1])}`)}${Object.entries(dq.row_counts || {}).map(([k, v]) => row(esc(k.toLowerCase()) + " rows", fmtInt(v))).join("")}</div></div>
+    <div class="card"><h2>Sign check</h2><div class="sub">Sales must be positive after the configured multiplier</div>
+      <div style="margin-top:10px" class="status ${signOk ? "ok" : "bad"}">${signOk ? "● Passed" : "● Failed"}</div>
+      ${AUD.group && dq.sign ? `<div class="dq-list">${row("Query sales (raw)", fmtAED(dq.sign.sales_raw))}${row("After multiplier " + dq.sign.multipliers[0], fmtAED(dq.sign.sales_after))}${row("Quantity after " + dq.sign.multipliers[1], fmtInt(dq.sign.qty_after))}</div>` : ""}</div>
+    <div class="card"><h2>Mapping exceptions</h2><div class="sub">Rows no rule claims, or claimed by a provisional rule</div>
+      ${AUD.group ? `<div style="margin-top:10px" class="status ${un.length ? "warn" : "ok"}">${un.length ? `◐ ${un.length} unassigned groups · AED ${fmtAED(unTotal)}` : "● None unassigned"}</div>
+      <div class="dq-list">${(dq.provisional || []).map(p => row(`${esc(p.rule)} (${esc(p.source.toLowerCase())})`, "AED " + fmtAED(p.amount))).join("") || row("Provisional rules", "none hit")}${row("SKUs without category", fmtInt(dq.skus_without_category || 0))}</div>`
+      : `<div class="note" style="margin-top:10px">Mapping exceptions are reviewed by Group Finance.</div>`}</div>
+  </section>
+  ${AUD.group && un.length ? `<section class="card"><div class="card-head"><div><h2>Unassigned rows</h2><div class="sub">Add a rule in config.json for each, or confirm they belong outside the dashboard · top ${Math.min(un.length, 200)} by amount, all periods</div></div></div>
+    <div class="tbl-wrap"><table><thead><tr><th class="l">Source</th><th class="l">Company</th><th class="l">Division label</th><th class="l">Dept code</th><th class="l">Cust. cat.</th><th>AED</th></tr></thead>
+    <tbody>${un.slice(0, 50).map(r => `<tr><td class="l">${esc(r.source)}</td><td class="l">${esc(r.co)}</td><td class="l">${esc(r.division)}</td><td class="l">${esc(r.dept)}</td><td class="l">${esc(r.custcat)}</td><td>${fmtAED(r.amount)}</td></tr>`).join("")}</tbody></table></div></section>` : ""}
+  <section class="card"><div class="card-head"><div><h2>Budget coverage</h2><div class="sub">Months with a sales budget, by company</div></div></div>
+    <div class="tbl-wrap"><table><thead><tr><th class="l">Company</th><th>Months</th><th class="l">From</th><th class="l">To</th><th>Total AED</th><th class="l">Status</th></tr></thead>
+    <tbody>${(dq.budget_coverage || []).map(c => `<tr><td class="l">${COMPANIES[c.co] || c.co}</td><td>${c.months}</td><td class="l">${c.first ? monLabel(c.first) : "—"}</td><td class="l">${c.last ? monLabel(c.last) : "—"}</td><td>${fmtAED(c.total)}</td><td class="l">${c.months ? `<span class="status ok">● Loaded</span>` : `<span class="status bad">● Missing: check budget name</span>`}</td></tr>`).join("")}</tbody></table></div>
+    <div class="note" style="margin-top:12px">Actual sales come from the item ledger and exclude non-item revenue, while budget is set on G/L accounts. Expect actuals to run slightly below budget for that reason alone. COGS and margin are not shown in this phase.</div></section>`;
+}
+
+function render() {
+  renderFilters(); renderTabs(); renderBanner();
+  const main = document.getElementById("main");
+  main.innerHTML = { overview: pageOverview, sku: pageSku, jomara: pageJomara, dq: pageDQ }[state.tab]();
+  if (state.tab === "overview") drawTrend();
+  if (state.tab === "sku") {
+    const s = document.getElementById("skuSearch");
+    s.oninput = () => { state.skuSearch = s.value; const pos = s.selectionStart; render(); const n = document.getElementById("skuSearch"); n.focus(); n.setSelectionRange(pos, pos); };
+    document.getElementById("skuCat").onchange = e => { state.skuCat = e.target.value; render(); };
+    main.querySelectorAll("th.sort").forEach(th => th.onclick = () => { const k = th.dataset.k; state.skuDir = state.skuSort === k ? -state.skuDir : (k === "desc" ? 1 : -1); state.skuSort = k; render(); });
+  }
+}
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => state.tab === "overview" && drawTrend(), 120); });
+
+/* ======================================================================
+   AI ANALYST — off unless config "analyst_enabled" is true AND the page
+   is opened on claude.ai. Tools read only this file's (already scoped) data.
+   ====================================================================== */
+const drawer = document.getElementById("drawer"), dBody = document.getElementById("dBody");
+const qBox = document.getElementById("q"), sendBtn = document.getElementById("send"), stopBtn = document.getElementById("stop");
+let samplePromise = null, turns = [], busy = false, ctl = null, liveWorkingEl = null;
+const getSample = () => samplePromise || (samplePromise = (window.claude ? window.claude.use("sample").catch(() => null) : Promise.resolve(null)));
+if (META.analyst) getSample().then(s => { if (s) document.getElementById("openChat").hidden = false; });
+
+const STARTERS = {
+  overview: ["How are we doing vs budget and last year this month, and why?", "Which sub-line is furthest behind budget YTD?", "Which months this year were weakest against last year?"],
+  sku: ["Which SKUs grew most vs last year this quarter?", "Which top SKUs are declining vs LY YTD?", "What are the A-class SKUs this month?"],
+  jomara: ["Total Jomara in AED by sub-line this quarter vs budget", "Which Jomara sub-line is growing fastest YTD?", "How are Jomara exports doing vs last year?"],
+  dq: ["What should I be careful about in these numbers?", "Why might actuals run below budget?", "Is any budget missing?"],
+};
+function renderStarters() {
+  if (turns.length || !META.analyst) return;
+  const list = STARTERS[state.tab] || STARTERS.overview;
+  dBody.innerHTML = `<div class="msg ai"><p>I answer questions about the figures in this dashboard (<b>${esc(AUD.label)}</b>). Every number comes from a lookup you can inspect under <i>Show working</i>.</p></div>
+    <div class="starters"><div class="cap">Try asking</div>${list.map(s => `<button class="sq" type="button">${esc(s)}</button>`).join("")}</div>`;
+  dBody.querySelectorAll(".sq").forEach(b => b.onclick = () => ask(b.textContent));
+}
+document.getElementById("openChat").onclick = () => { drawer.classList.add("open"); drawer.setAttribute("aria-hidden", "false"); renderStarters(); qBox.focus(); };
+document.getElementById("closeChat").onclick = () => { drawer.classList.remove("open"); drawer.setAttribute("aria-hidden", "true"); };
+document.addEventListener("keydown", e => { if (e.key === "Escape" && drawer.classList.contains("open")) document.getElementById("closeChat").click(); });
+document.getElementById("composer").onsubmit = e => { e.preventDefault(); const v = qBox.value.trim(); if (v) ask(v); };
+qBox.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); document.getElementById("composer").requestSubmit(); } });
+stopBtn.onclick = () => ctl?.abort();
+
+const r0 = v => v == null ? null : Math.round(v), p1 = v => v == null ? null : Math.round(v * 1000) / 10;
+function segParam(v) { if (!v || String(v).toUpperCase() === "ALL") return "ALL"; const s = String(v).trim().toUpperCase(); const h = D.segments.find(x => x.code === s || x.label.toUpperCase().startsWith(s)); return h ? h.code : "__NONE__"; }
+function coParam(v) { if (!v || String(v).toUpperCase() === "ALL") return "ALL"; const s = String(v).toUpperCase(); return s.includes("UAE") ? "UAE" : s.includes("KSA") ? "KSA" : s.includes("FAKHRA") ? "FAKHRA" : "__NONE__"; }
+function resolvePeriod(p) { if (PERIODS[p]) return PERIODS[p]; if (/^\d{4}-\d{2}$/.test(p) && p in MI) return { label: monLabel(p), long: monLabel(p), months: [p] }; throw new Error(`Unknown period "${p}". Use MTD, M, QTD, YTD or a month YYYY-MM between ${MONTHS[0]} and ${LAST}.`); }
+function makeTools(log) {
+  const EMPTY = { rows: [], note: "No data is available for this request within the user's access scope." };
+  const bad = (seg, co) => seg === "__NONE__" || co === "__NONE__" || (seg !== "ALL" && !AUD.segments.includes(seg)) || (co !== "ALL" && !AUD.companies.includes(co));
+  const wrap = (name, fn) => async input => { const res = fn(input || {}); log.push({ tool: name, input, rows: Array.isArray(res.rows) ? res.rows.length : 1, result: res }); if (liveWorkingEl) liveWorkingEl.innerHTML = workingHtml(log, true); return res; };
+  const periodProp = { type: "string", description: `MTD (${PERIODS.MTD.long}), M (${PERIODS.M.long}), QTD (${PERIODS.QTD.long}), YTD (${PERIODS.YTD.long}), or a month YYYY-MM.` };
+  const segProp = { type: "string", description: `Segment code (${AUD.segments.join(", ")}) or ALL.` }, coProp = { type: "string", description: `${AUD.companies.join(", ")} or ALL.` };
+  return [
+    { name: "get_kpis", description: "Net sales (item ledger), G/L budget, last year, variances, quantity and other income for a period. AED.",
+      inputSchema: { type: "object", properties: { period: periodProp, segment: segProp, company: coProp }, required: ["period"] },
+      execute: wrap("get_kpis", i => { const P = resolvePeriod(String(i.period)), seg = segParam(i.segment), co = coParam(i.company); if (bad(seg, co)) return EMPTY;
+        const t = sumLines(linesFor({ segment: seg, company: co }), P);
+        return { period: P.long, currency: "AED", net_sales: r0(t.act), budget: r0(t.bud), last_year: r0(t.ly), var_vs_budget_pct: p1(pct(t.act, t.bud)), var_vs_ly_pct: p1(pct(t.act, t.ly)), qty: r0(t.qty), other_income: r0(t.oi) }; }) },
+    { name: "get_breakdown", description: "Split net sales for a period by segment, company, subline, category or month with budget and last year.",
+      inputSchema: { type: "object", properties: { period: periodProp, by: { type: "string", enum: ["segment", "company", "subline", "category", "month"] }, segment: segProp, company: coProp }, required: ["period", "by"] },
+      execute: wrap("get_breakdown", i => { const P = resolvePeriod(String(i.period)), seg = segParam(i.segment), co = coParam(i.company); if (bad(seg, co)) return EMPTY;
+        const ii = linesFor({ segment: seg, company: co }), by = String(i.by);
+        if (by === "category") { const m = new Map(); skuTable(P, { segment: seg, company: co }).forEach(r => { const o = m.get(r.sku.cat) || { key: r.sku.cat, net_sales: 0, last_year: 0 }; o.net_sales += r.sales; o.last_year += r.ly; m.set(r.sku.cat, o); });
+          return { period: P.long, rows: [...m.values()].map(o => ({ key: o.key, net_sales: r0(o.net_sales), last_year: r0(o.last_year), var_vs_ly_pct: p1(pct(o.net_sales, o.last_year)) })).sort((a, b) => b.net_sales - a.net_sales).slice(0, 25) }; }
+        if (by === "month") return { rows: P.months.map(k => { const t = sumLines(ii, P.mtd ? P : { months: [k] }); return { key: monLabel(k), net_sales: r0(t.act), budget: r0(t.bud), last_year: r0(t.ly), var_vs_budget_pct: p1(pct(t.act, t.bud)), var_vs_ly_pct: p1(pct(t.act, t.ly)) }; }) };
+        const keyOf = { segment: L => SEG[L.seg]?.label || L.seg, company: L => COMPANIES[L.co] || L.co, subline: lineLabel }[by]; if (!keyOf) throw new Error("by must be segment, company, subline, category or month");
+        const g = new Map(); ii.forEach(x => { const k = keyOf(D.lines[x]); (g.get(k) || g.set(k, []).get(k)).push(x); });
+        return { period: P.long, rows: [...g.entries()].map(([k, xs]) => { const t = sumLines(xs, P); return { key: k, net_sales: r0(t.act), budget: r0(t.bud), last_year: r0(t.ly), var_vs_budget_pct: p1(pct(t.act, t.bud)), var_vs_ly_pct: p1(pct(t.act, t.ly)) }; }).sort((a, b) => b.net_sales - a.net_sales) }; }) },
+    { name: "get_sku_ranking", description: "Rank SKUs (item ledger, no budget) for a period by net_sales, qty, growth_vs_ly or decline_vs_ly.",
+      inputSchema: { type: "object", properties: { period: periodProp, sort_by: { type: "string", enum: ["net_sales", "qty", "growth_vs_ly", "decline_vs_ly"] }, top_n: { type: "integer", minimum: 1, maximum: 25 }, segment: segProp, company: coProp, category: { type: "string" } }, required: ["period", "sort_by"] },
+      execute: wrap("get_sku_ranking", i => { const P = resolvePeriod(String(i.period)), seg = segParam(i.segment), co = coParam(i.company); if (bad(seg, co)) return EMPTY;
+        const rows = skuTable(P, { segment: seg, company: co, category: i.category ? String(i.category) : "ALL" });
+        const s = { net_sales: (a, b) => b.sales - a.sales, qty: (a, b) => b.qty - a.qty, growth_vs_ly: (a, b) => (b.sales - b.ly) - (a.sales - a.ly), decline_vs_ly: (a, b) => (a.sales - a.ly) - (b.sales - b.ly) };
+        rows.sort(s[i.sort_by] || s.net_sales);
+        return { period: P.long, rows: rows.slice(0, Math.min(Math.max(Number(i.top_n) || 10, 1), 25)).map(r => ({ sku: r.sku.no, description: r.sku.desc, category: r.sku.cat, abc: r.abc, qty: r0(r.qty), net_sales: r0(r.sales), last_year: r0(r.ly), change_vs_ly_pct: p1(pct(r.sales, r.ly)) })) }; }) },
+    { name: "get_data_status", description: "Extract time, budget coverage and caveats that affect the figures.",
+      execute: wrap("get_data_status", () => ({ extracted_at: META.extracted_at, budget_coverage: D.dq.budget_coverage, caveats: ["Actuals are item-ledger sales and exclude non-item revenue; budget is G/L, so actuals run slightly below budget by construction.", "MTD budget and LY are pro-rated by calendar days.", "COGS and margin are not available."] })) },
+  ];
+}
+function rules() {
+  return `You are the sales analyst inside a sales dashboard for a food & retail group. Data extracted ${META.extracted_at}.
+USER SCOPE (enforced by the data, not by you): ${AUD.label}. Segments: ${AUD.segments.map(s => SEG[s]?.label || s).join(", ")}. Companies: ${AUD.companies.map(c => COMPANIES[c] || c).join(", ")}. ${AUD.group ? "" : "Do not discuss group totals or rankings against other segments."}
+If asked about anything outside this scope, say it is outside their access and name only the segments they have. An empty tool result means no data in scope.
+CURRENT SCREEN: ${state.tab}. Period ${PERIODS[state.period].long} (${state.period}); company ${state.company}; segment ${state.segment}. Use these as defaults.
+RULES: every figure must come from a tool result; never estimate. Lead with a one-sentence answer, then 2–4 figures, then drivers. State period and AED. No budget per SKU. AED with K/M, one-decimal percentages, UK English, under 170 words. One small markdown table at most. Ask one clarifying question if ambiguous. No COGS or margin.
+End with:
+FOLLOW-UPS:
+- <question>
+- <question>
+- <question>`;
+}
+function renderMd(src) {
+  const lines = esc(src).split("\n"); let html = "", list = false, tbl = [];
+  const inline = s => s.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>");
+  const flushT = () => { if (!tbl.length) return; const rows = tbl.filter(r => !/^\|?\s*:?-{2,}/.test(r)).map(r => r.replace(/^\||\|$/g, "").split("|").map(c => c.trim()));
+    html += `<div class="md-tbl"><table><thead><tr>${rows[0].map((c, i) => `<th class="${i ? "" : "l"}">${inline(c)}</th>`).join("")}</tr></thead><tbody>${rows.slice(1).map(r => `<tr>${r.map((c, i) => `<td class="${i ? "" : "l"}">${inline(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`; tbl = []; };
+  for (const raw of lines) { const l = raw.trim();
+    if (l.startsWith("|")) { if (list) { html += "</ul>"; list = false; } tbl.push(l); continue; } flushT();
+    if (/^[-•*] /.test(l)) { if (!list) { html += "<ul>"; list = true; } html += `<li>${inline(l.slice(2))}</li>`; continue; }
+    if (list) { html += "</ul>"; list = false; }
+    if (/^#{1,4} /.test(l)) { html += `<h4>${inline(l.replace(/^#+ /, ""))}</h4>`; continue; } if (l) html += `<p>${inline(l)}</p>`; }
+  flushT(); if (list) html += "</ul>"; return html;
+}
+function splitFollowups(t) { const m = t.split(/\n\s*FOLLOW-?UPS:?\s*\n/i); return m.length < 2 ? { body: t, fus: [] } : { body: m[0].trim(), fus: m[1].split("\n").map(s => s.replace(/^[-•*\d.)\s]+/, "").trim()).filter(Boolean).slice(0, 3) }; }
+function workingHtml(log, open) { if (!log.length) return ""; return `<details class="working" ${open ? "open" : ""}><summary>Show working · ${log.length} lookup${log.length > 1 ? "s" : ""}</summary>${log.map(l => `<div><b>${esc(l.tool)}</b> · ${l.rows} row${l.rows === 1 ? "" : "s"}<pre>${esc(JSON.stringify(l.input))}\n→ ${esc(JSON.stringify(l.result).slice(0, 900))}</pre></div>`).join("")}</details>`; }
+const ERR = { not_granted: "The analyst needs permission to use your Claude account.", rate_limited: "Too many questions in a short time. Wait a minute.", upstream_error: "The connection to Claude dropped. Ask again.", prompt_too_large: "This conversation is too long. Reload to start again." };
+async function ask(question) {
+  if (busy) return; const sample = await getSample(); if (!sample) return;
+  if (!turns.length) dBody.innerHTML = "";
+  busy = true; sendBtn.hidden = true; stopBtn.hidden = false; qBox.value = "";
+  dBody.insertAdjacentHTML("beforeend", `<div class="msg user">${esc(question)}</div>`);
+  const holder = document.createElement("div"); holder.className = "msg ai"; holder.innerHTML = `<div class="ans"><span class="thinking">Thinking…</span></div><div class="wk"></div>`;
+  dBody.appendChild(holder); const ans = holder.querySelector(".ans"); liveWorkingEl = holder.querySelector(".wk");
+  const log = []; turns.push({ role: "user", content: question }); ctl = new AbortController();
+  try {
+    const { text } = await sample([{ role: "user", content: rules() }, ...turns], { signal: ctl.signal, tools: makeTools(log), onText: ({ text }) => { ans.innerHTML = renderMd(splitFollowups(text).body); } });
+    const { body, fus } = splitFollowups(text); ans.innerHTML = renderMd(body); liveWorkingEl.innerHTML = workingHtml(log, false);
+    if (fus.length) { holder.insertAdjacentHTML("beforeend", `<div class="followups">${fus.map(f => `<button type="button">${esc(f)}</button>`).join("")}</div>`); holder.querySelectorAll(".followups button").forEach(b => b.onclick = () => ask(b.textContent)); }
+    turns.push({ role: "assistant", content: text });
+  } catch (e) { turns.pop(); ans.innerHTML = (e?.text ? renderMd(splitFollowups(e.text).body) : "") + `<p class="note">${esc(e?.code === "cancelled" ? "Stopped." : ERR[e?.code] || "Something went wrong. Ask again.")}</p>`; liveWorkingEl.innerHTML = workingHtml(log, false); }
+  finally { busy = false; sendBtn.hidden = false; stopBtn.hidden = true; liveWorkingEl = null; holder.scrollIntoView({ block: "end" }); }
+}
+
+render();
+</script>
+</body>
+</html>

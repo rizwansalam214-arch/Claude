@@ -1,0 +1,113 @@
+{
+  "_comment": "Copy to config.json and adjust. Secrets never go in this file: they come from environment variables.",
+
+  "connection": {
+    "driver": "pyodbc",
+    "odbc_driver": "ODBC Driver 18 for SQL Server",
+    "server_env": "SALES_SQL_SERVER",
+    "database": "BTL_LS_LIVE",
+    "trusted_connection": true,
+    "user_env": "SALES_SQL_USER",
+    "password_env": "SALES_SQL_PASSWORD",
+    "encrypt": "yes",
+    "trust_server_certificate": "yes",
+    "timeout_seconds": 1800
+  },
+
+  "sql_file": "sql/channel_sku_extract.sql",
+  "output_dir": "output",
+  "template": "template.html",
+
+  "sign": {
+    "_comment": "Multipliers applied to the query's Sales and Quantity columns. BC stores sales positive and quantity negative; the query negates sales, so both need -1. The build aborts if actual sales or quantity come out negative overall.",
+    "sales": -1,
+    "quantity": -1
+  },
+
+  "fx_to_aed": { "UAE": 1.0, "KSA": 0.979333, "FAKHRA": 0.979333 },
+
+  "segments": [
+    { "code": "RETAIL",    "label": "Retail" },
+    { "code": "CAFE",      "label": "Café & El'an" },
+    { "code": "B2B",       "label": "B2B & Hotels" },
+    { "code": "TRAVEL",    "label": "Travel Retail / Duty Free" },
+    { "code": "JOMARA",    "label": "Jomara" },
+    { "code": "FRANCHISE", "label": "Franchise (incl. SNS)" },
+    { "code": "ECOM",      "label": "E-commerce" },
+    { "code": "AIRLINES",  "label": "Airlines" },
+    { "code": "BULK",      "label": "Bulk Sales (Farms)" }
+  ],
+
+  "rules": {
+    "_comment": "Precedence: UAE customer category, then department code, then division label. 'provisional' rules are listed on the Data quality page.",
+    "uae_customer_category": {
+      "1080": { "segment": "B2B", "subline": "Hotels" },
+      "1020": { "segment": "B2B", "subline": "Corporates & Institutions" },
+      "1030": { "segment": "B2B", "subline": "Corporates & Institutions" },
+      "1040": { "segment": "B2B", "subline": "Corporates & Institutions" },
+      "1060": { "segment": "B2B", "subline": "Corporates & Institutions" },
+      "1070": { "segment": "B2B", "subline": "Corporates & Institutions" },
+      "1090": { "segment": "B2B", "subline": "Corporates & Institutions" },
+      "1100": { "segment": "B2B", "subline": "Corporates & Institutions" },
+      "1131": { "segment": "B2B", "subline": "Corporates & Institutions" },
+      "1190": { "segment": "B2B", "subline": "Corporates & Institutions" },
+      "1010": { "segment": "AIRLINES", "subline": "Airlines" },
+      "1160": { "segment": "TRAVEL", "subline": "Duty Free" },
+      "1182": { "segment": "TRAVEL", "subline": "Duty Free" },
+      "1150": { "segment": "JOMARA", "subline": "Jomara Supermarket — UAE", "order": 1 },
+      "1151": { "segment": "JOMARA", "subline": "Jomara Distributor — UAE", "order": 2 },
+      "1152": { "segment": "JOMARA", "subline": "Jomara Dark Stores — UAE", "order": 3 },
+      "1180": { "segment": "JOMARA", "subline": "UAE Exports", "order": 7 },
+      "1181": { "segment": "JOMARA", "subline": "UAE Exports", "order": 7, "provisional": true }
+    },
+    "department": {
+      "UAE": {
+        "1196": { "segment": "ECOM", "subline": "E-commerce" },
+        "1120": { "segment": "ECOM", "subline": "E-commerce" },
+        "1601": { "segment": "ECOM", "subline": "E-commerce" },
+        "1602": { "segment": "ECOM", "subline": "E-commerce" },
+        "1603": { "segment": "ECOM", "subline": "E-commerce" }
+      },
+      "KSA": {
+        "3188": { "segment": "ECOM", "subline": "E-commerce" },
+        "3193": { "segment": "B2B", "subline": "Corporate / Hotels KSA" },
+        "3194": { "segment": "B2B", "subline": "Corporate / Hotels KSA" },
+        "3195": { "segment": "B2B", "subline": "Corporate / Hotels KSA" },
+        "3308": { "segment": "B2B", "subline": "Corporate / Hotels KSA" },
+        "3309": { "segment": "B2B", "subline": "Corporate / Hotels KSA" },
+        "3310": { "segment": "B2B", "subline": "Corporate / Hotels KSA" }
+      },
+      "FAKHRA": {
+        "014":   { "segment": "JOMARA", "subline": "Jomara Distributor — KSA", "order": 4 },
+        "015":   { "segment": "JOMARA", "subline": "Jomara Local Sales — KSA", "order": 5 },
+        "018":   { "segment": "JOMARA", "subline": "Jomara Dark Stores — KSA", "order": 6 },
+        "016":   { "segment": "JOMARA", "subline": "KSA Exports", "order": 8 },
+        "011-1": { "segment": "JOMARA", "subline": "Bulk / Wholesales", "order": 9 },
+        "017":   { "segment": "JOMARA", "subline": "KSA Private Label", "order": 10, "provisional": true },
+        "011":   { "segment": "BULK", "subline": "Farms" },
+        "013-1": { "segment": "BULK", "subline": "Farms" }
+      }
+    },
+    "division": {
+      "_comment": "Keys are the query's Division label, upper-cased with accents, spaces and punctuation removed (\"E-Commerce\" -> ECOMMERCE, \"Café\" -> CAFE).",
+      "RETAIL":     { "segment": "RETAIL",    "subline": "Retail" },
+      "CAFE":       { "segment": "CAFE",      "subline": "Café" },
+      "ELAN":       { "segment": "CAFE",      "subline": "El'an" },
+      "ECOMMERCE":  { "segment": "ECOM",      "subline": "E-commerce" },
+      "ECOM":       { "segment": "ECOM",      "subline": "E-commerce" },
+      "FRANCHISE":  { "segment": "FRANCHISE", "subline": "Franchise" },
+      "FRANCHAISE": { "segment": "FRANCHISE", "subline": "Franchise" },
+      "SNS":        { "segment": "FRANCHISE", "subline": "SNS", "provisional": true }
+    }
+  },
+
+  "audiences": {
+    "_comment": "One HTML file per audience. Each file contains ONLY that audience's data: scope is enforced when the file is built.",
+    "group":      { "label": "Group Finance",        "segments": "*",          "companies": "*",              "group": true },
+    "retail":     { "label": "Head of Retail",       "segments": ["RETAIL"],   "companies": ["UAE", "KSA"],   "group": false },
+    "jomara-uae": { "label": "Head of Jomara (UAE)", "segments": ["JOMARA"],   "companies": ["UAE"],          "group": false }
+  },
+
+  "analyst_enabled": false,
+  "_analyst_comment": "Keep false until Finance/Legal approve sending figures to the Claude API. When true, the 'Ask the analyst' drawer appears, and works only if the file is published as a private claude.ai artifact."
+}
